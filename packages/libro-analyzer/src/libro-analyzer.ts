@@ -1,10 +1,12 @@
 import { IPythonMode } from 'pyright-internal/analyzer/sourceFile';
+import { Uri } from 'pyright-internal/common/uri/uri';
 import { PyrightServer } from 'pyright-internal/server';
 import {
     CancellationToken,
     DidChangeNotebookDocumentParams,
     DidCloseNotebookDocumentParams,
     DidOpenNotebookDocumentParams,
+    DidOpenTextDocumentParams,
     DidSaveNotebookDocumentParams,
     DocumentUri,
     InitializeParams,
@@ -12,6 +14,7 @@ import {
     NotebookCell,
     NotebookDocument,
 } from 'vscode-languageserver-protocol';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 
 export class LibroAnalyzer extends PyrightServer {
     protected readonly notebookDocuments = new Map<string, NotebookDocument>();
@@ -73,9 +76,11 @@ export class LibroAnalyzer extends PyrightServer {
         }
         this.notebookDocuments.set(uri.key, doc);
 
-        params.cellTextDocuments.forEach((cell) => {
-            this.onDidOpenTextDocument({ textDocument: cell }, IPythonMode.CellDocs);
-        });
+        let chainedFilePath: Uri | undefined;
+        for (const cell of params.cellTextDocuments) {
+            this.onDidOpenTextDocument({ textDocument: cell }, IPythonMode.CellDocs, chainedFilePath);
+            chainedFilePath = this.decodeUri(cell.uri);
+        }
 
         this.updateCellMap(params.notebookDocument);
     }
@@ -107,10 +112,15 @@ export class LibroAnalyzer extends PyrightServer {
                 // Additional open cell text documents.
                 if (changedCells.structure.didOpen !== undefined) {
                     for (const open of changedCells.structure.didOpen) {
-                        this.onDidOpenTextDocument({ textDocument: open }, IPythonMode.CellDocs);
+                        const currentIndex = notebookDocument.cells.findIndex((item) => item.document === open.uri);
+                        const chainedFile = currentIndex > 0 ? notebookDocument.cells[currentIndex - 1] : undefined;
+                        const chainedFilePath = chainedFile?.document
+                            ? this.decodeUri(chainedFile?.document)
+                            : undefined;
+                        this.onDidOpenTextDocument({ textDocument: open }, IPythonMode.CellDocs, chainedFilePath);
                     }
                 }
-                // Additional closed cell test documents.
+                // Additional closed cell text documents.
                 if (changedCells.structure.didClose) {
                     for (const close of changedCells.structure.didClose) {
                         this.onDidCloseTextDocument({ textDocument: close });
@@ -158,6 +168,41 @@ export class LibroAnalyzer extends PyrightServer {
         for (const cell of notebookDocument.cells) {
             this.notebookCellMap.delete(cell.document);
         }
+    }
+
+    protected override async onDidOpenTextDocument(
+        params: DidOpenTextDocumentParams,
+        ipythonMode?: IPythonMode,
+        chainedFileUri?: Uri
+    ): Promise<void> {
+        const uri = this.decodeUri(params.textDocument.uri);
+
+        let doc = this.openFileMap.get(uri.key);
+        if (doc) {
+            // We shouldn't get an open text document request for an already-opened doc.
+            this.console.error(`Received redundant open text document command for ${uri}`);
+            TextDocument.update(doc, [{ text: params.textDocument.text }], params.textDocument.version);
+        } else {
+            doc = TextDocument.create(
+                params.textDocument.uri,
+                'python',
+                params.textDocument.version,
+                params.textDocument.text
+            );
+        }
+        this.openFileMap.set(uri.key, doc);
+
+        // Send this open to all the workspaces that might contain this file.
+        const workspaces = await this.getContainingWorkspacesForFile(uri);
+        workspaces.forEach((w) => {
+            w.service.setFileOpened(
+                uri,
+                params.textDocument.version,
+                params.textDocument.text,
+                ipythonMode,
+                chainedFileUri
+            );
+        });
     }
 
     protected override onShutdown(token: CancellationToken): Promise<void> {

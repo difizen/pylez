@@ -1,5 +1,6 @@
 import { IPythonMode } from 'pyright-internal/analyzer/sourceFile';
 import { Uri } from 'pyright-internal/common/uri/uri';
+import { TextDocument } from 'pyright-internal/exports';
 import { PyrightServer } from 'pyright-internal/server';
 import {
     CancellationToken,
@@ -8,17 +9,15 @@ import {
     DidOpenNotebookDocumentParams,
     DidOpenTextDocumentParams,
     DidSaveNotebookDocumentParams,
-    DocumentUri,
     InitializeParams,
     InitializeResult,
     NotebookCell,
     NotebookDocument,
 } from 'vscode-languageserver-protocol';
-import { TextDocument } from 'vscode-languageserver-textdocument';
 
 export class LibroAnalyzer extends PyrightServer {
     protected readonly notebookDocuments = new Map<string, NotebookDocument>();
-    protected readonly notebookCellMap = new Map<DocumentUri, [NotebookCell, NotebookDocument]>();
+    // protected readonly notebookCellMap = new Map<DocumentUri, [NotebookCell, NotebookDocument]>();
 
     protected override setupConnection(supportedCommands: string[], supportedCodeActions: string[]): void {
         super.setupConnection(supportedCommands, supportedCodeActions);
@@ -42,7 +41,6 @@ export class LibroAnalyzer extends PyrightServer {
         supportedCodeActions: string[]
     ): InitializeResult {
         const result = super.initialize(params, supportedCommands, supportedCodeActions);
-        // params.capabilities.notebookDocument?.synchronization
         result.capabilities.notebookDocumentSync = {
             notebookSelector: [
                 {
@@ -52,12 +50,6 @@ export class LibroAnalyzer extends PyrightServer {
             ],
         };
         return result;
-    }
-
-    protected updateCellMap(notebookDocument: NotebookDocument): void {
-        for (const cell of notebookDocument.cells) {
-            this.notebookCellMap.set(cell.document, [cell, notebookDocument]);
-        }
     }
 
     protected async onDidOpenNotebookDocument(params: DidOpenNotebookDocumentParams) {
@@ -78,15 +70,12 @@ export class LibroAnalyzer extends PyrightServer {
 
         let chainedFilePath: Uri | undefined;
         for (const cell of params.cellTextDocuments) {
-            this.onDidOpenTextDocument({ textDocument: cell }, IPythonMode.CellDocs, chainedFilePath);
+            await this.onDidOpenTextDocument({ textDocument: cell }, IPythonMode.CellDocs, chainedFilePath);
             chainedFilePath = this.decodeUri(cell.uri);
         }
-
-        this.updateCellMap(params.notebookDocument);
     }
-    protected onDidChangeNotebookDocument(params: DidChangeNotebookDocumentParams) {
+    protected async onDidChangeNotebookDocument(params: DidChangeNotebookDocumentParams) {
         this.recordUserInteractionTime();
-
         const uri = this.decodeUri(params.notebookDocument.uri);
         const notebookDocument = this.notebookDocuments.get(uri.key);
         if (notebookDocument === undefined) {
@@ -117,15 +106,16 @@ export class LibroAnalyzer extends PyrightServer {
                         const chainedFilePath = chainedFile?.document
                             ? this.decodeUri(chainedFile?.document)
                             : undefined;
-                        this.onDidOpenTextDocument({ textDocument: open }, IPythonMode.CellDocs, chainedFilePath);
+                        await this.onDidOpenTextDocument({ textDocument: open }, IPythonMode.CellDocs, chainedFilePath);
                     }
                 }
                 // Additional closed cell text documents.
                 if (changedCells.structure.didClose) {
                     for (const close of changedCells.structure.didClose) {
-                        this.onDidCloseTextDocument({ textDocument: close });
+                        await this.onDidCloseTextDocument({ textDocument: close });
                     }
                 }
+                await this.updateChainedFile(uri);
             }
             if (changedCells.data !== undefined) {
                 const cellUpdates: Map<string, NotebookCell> = new Map(
@@ -142,11 +132,11 @@ export class LibroAnalyzer extends PyrightServer {
                 }
             }
             if (changedCells.textContent !== undefined) {
-                for (const cellTextDocument of changedCells.textContent) {
-                    this.onDidChangeTextDocument(
+                for (const cellTextDocumentChange of changedCells.textContent) {
+                    await this.onDidChangeTextDocument(
                         {
-                            textDocument: cellTextDocument.document,
-                            contentChanges: cellTextDocument.changes,
+                            textDocument: cellTextDocumentChange.document,
+                            contentChanges: cellTextDocumentChange.changes,
                         },
                         IPythonMode.CellDocs
                     );
@@ -165,9 +155,6 @@ export class LibroAnalyzer extends PyrightServer {
             this.onDidCloseTextDocument({ textDocument: cellTextDocument });
         }
         this.notebookDocuments.delete(uri.key);
-        for (const cell of notebookDocument.cells) {
-            this.notebookCellMap.delete(cell.document);
-        }
     }
 
     protected override async onDidOpenTextDocument(
@@ -205,8 +192,31 @@ export class LibroAnalyzer extends PyrightServer {
         });
     }
 
+    protected async updateChainedFile(notebookUri: Uri) {
+        const doc = this.notebookDocuments.get(notebookUri.key);
+        if (!doc) {
+            return;
+        }
+        if (this.hasSameCell(doc)) {
+            return;
+        }
+        let chainedFileUri: Uri;
+        for (const cell of doc.cells) {
+            const cellUri = this.decodeUri(cell.document);
+            // Send this change to all the workspaces that might contain this file.
+            const workspaces = await this.getContainingWorkspacesForFile(this.decodeUri(cell.document));
+            workspaces.forEach((w) => {
+                w.service.updateChainedUri(cellUri, chainedFileUri);
+            });
+            chainedFileUri = cellUri;
+        }
+    }
+
+    protected hasSameCell(doc: NotebookDocument) {
+        return new Set(doc.cells.map((cell) => cell.document)).size !== doc.cells.length;
+    }
+
     protected override onShutdown(token: CancellationToken): Promise<void> {
-        this.notebookCellMap.clear();
         this.notebookDocuments.clear();
         return super.onShutdown(token);
     }

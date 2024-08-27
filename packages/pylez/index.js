@@ -3,5 +3,5 @@
 // @ts-nocheck
 
 // Stash the base directory into a global variable.
-global.__rootDirectory = process.env['LIBRO_ANALYZER_WORKING_DIR'] || __dirname + '/dist/';
+global.__rootDirectory = process.env['PYLEZ_WORKING_DIR'] || __dirname + '/dist/';
 require('./dist/index');

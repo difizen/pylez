@@ -15,7 +15,7 @@ import {
     NotebookDocument,
 } from 'vscode-languageserver-protocol';
 
-export class LibroAnalyzer extends PyrightServer {
+export class Pylez extends PyrightServer {
     protected readonly notebookDocuments = new Map<string, NotebookDocument>();
     // protected readonly notebookCellMap = new Map<DocumentUri, [NotebookCell, NotebookDocument]>();
 
@@ -35,12 +35,12 @@ export class LibroAnalyzer extends PyrightServer {
         );
     }
 
-    protected override initialize(
+    protected override async initialize(
         params: InitializeParams,
         supportedCommands: string[],
         supportedCodeActions: string[]
-    ): InitializeResult {
-        const result = super.initialize(params, supportedCommands, supportedCodeActions);
+    ): Promise<InitializeResult> {
+        const result = await super.initialize(params, supportedCommands, supportedCodeActions);
         result.capabilities.notebookDocumentSync = {
             notebookSelector: [
                 {
@@ -53,7 +53,7 @@ export class LibroAnalyzer extends PyrightServer {
     }
 
     protected async onDidOpenNotebookDocument(params: DidOpenNotebookDocumentParams) {
-        const uri = this.decodeUri(params.notebookDocument.uri);
+        const uri = this.convertLspUriStringToUri(params.notebookDocument.uri);
         let doc = this.notebookDocuments.get(uri.key);
         if (doc) {
             // We shouldn't get an open notebook document request for an already-opened doc.
@@ -71,12 +71,12 @@ export class LibroAnalyzer extends PyrightServer {
         let chainedFilePath: Uri | undefined;
         for (const cell of params.cellTextDocuments) {
             await this.onDidOpenTextDocument({ textDocument: cell }, IPythonMode.CellDocs, chainedFilePath);
-            chainedFilePath = this.decodeUri(cell.uri);
+            chainedFilePath = this.convertLspUriStringToUri(cell.uri);
         }
     }
     protected async onDidChangeNotebookDocument(params: DidChangeNotebookDocumentParams) {
         this.recordUserInteractionTime();
-        const uri = this.decodeUri(params.notebookDocument.uri);
+        const uri = this.convertLspUriStringToUri(params.notebookDocument.uri);
         const notebookDocument = this.notebookDocuments.get(uri.key);
         if (notebookDocument === undefined) {
             // We shouldn't get a change notebook request for a closed doc.
@@ -104,7 +104,7 @@ export class LibroAnalyzer extends PyrightServer {
                         const currentIndex = notebookDocument.cells.findIndex((item) => item.document === open.uri);
                         const chainedFile = currentIndex > 0 ? notebookDocument.cells[currentIndex - 1] : undefined;
                         const chainedFilePath = chainedFile?.document
-                            ? this.decodeUri(chainedFile?.document)
+                            ? this.convertLspUriStringToUri(chainedFile?.document)
                             : undefined;
                         await this.onDidOpenTextDocument({ textDocument: open }, IPythonMode.CellDocs, chainedFilePath);
                     }
@@ -146,7 +146,7 @@ export class LibroAnalyzer extends PyrightServer {
     }
     protected onDidSaveNotebookDocument(params: DidSaveNotebookDocumentParams) {}
     protected onDidCloseNotebookDocument(params: DidCloseNotebookDocumentParams) {
-        const uri = this.decodeUri(params.notebookDocument.uri);
+        const uri = this.convertLspUriStringToUri(params.notebookDocument.uri);
         const notebookDocument = this.notebookDocuments.get(uri.key);
         if (notebookDocument === undefined) {
             return;
@@ -162,7 +162,7 @@ export class LibroAnalyzer extends PyrightServer {
         ipythonMode?: IPythonMode,
         chainedFileUri?: Uri
     ): Promise<void> {
-        const uri = this.decodeUri(params.textDocument.uri);
+        const uri = this.convertLspUriStringToUri(params.textDocument.uri);
 
         let doc = this.openFileMap.get(uri.key);
         if (doc) {
@@ -202,9 +202,9 @@ export class LibroAnalyzer extends PyrightServer {
         }
         let chainedFileUri: Uri;
         for (const cell of doc.cells) {
-            const cellUri = this.decodeUri(cell.document);
+            const cellUri = this.convertLspUriStringToUri(cell.document);
             // Send this change to all the workspaces that might contain this file.
-            const workspaces = await this.getContainingWorkspacesForFile(this.decodeUri(cell.document));
+            const workspaces = await this.getContainingWorkspacesForFile(this.convertLspUriStringToUri(cell.document));
             workspaces.forEach((w) => {
                 w.service.updateChainedUri(cellUri, chainedFileUri);
             });

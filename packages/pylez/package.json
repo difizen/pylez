@@ -1,8 +1,8 @@
 {
-    "name": "@difizen/libro-analyzer",
+    "name": "@difizen/pylez",
     "private": false,
-    "displayName": "libro-analyzer",
-    "description": "Type checker for the Python language with notebook support",
+    "displayName": "pylez",
+    "description": "Type checker for the Python language with advanced feature",
     "version": "0.1.2",
     "license": "MIT",
     "author": {
@@ -14,8 +14,8 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/difizen/libro-analyzer",
-        "directory": "packages/libro-analyzer"
+        "url": "https://github.com/difizen/pylez",
+        "directory": "packages/pylez"
     },
     "scripts": {
         "build": "webpack --mode production --progress",
@@ -46,11 +46,11 @@
     "devDependencies": {
         "@types/node": "^17.0.45",
         "copy-webpack-plugin": "^11.0.0",
-        "esbuild-loader": "^3.0.1",
+        "esbuild-loader": "^3.2.0",
         "shx": "^0.3.4",
-        "ts-loader": "^9.4.4",
-        "typescript": "~5.2",
-        "webpack": "^5.88.1",
+        "ts-loader": "^9.5.1",
+        "typescript": "~5.5.4",
+        "webpack": "^5.90.1",
         "webpack-cli": "^5.1.4"
     },
     "files": [
@@ -59,6 +59,6 @@
     ],
     "main": "index.js",
     "bin": {
-        "libro-analyzer": "index.js"
+        "pylez": "index.js"
     }
 }

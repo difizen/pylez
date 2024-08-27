@@ -22,7 +22,7 @@ module.exports = (_, { mode }) => {
             filename: '[name].js',
             path: outPath,
             devtoolModuleFilenameTemplate:
-                mode === 'development' ? '../[resource-path]' : monorepoResourceNameMapper('libro-analyzer'),
+                mode === 'development' ? '../[resource-path]' : monorepoResourceNameMapper('pylez'),
             clean: true,
         },
         devtool: mode === 'development' ? 'source-map' : 'nosources-source-map',

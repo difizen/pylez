@@ -9,11 +9,11 @@
 import { BackgroundAnalysisRunner } from 'pyright-internal/backgroundAnalysis';
 import { ServiceProvider } from 'pyright-internal/common/serviceProvider';
 import { run } from 'pyright-internal/nodeServer';
-import { LibroAnalyzer } from './libro-analyzer';
+import { Pylez } from './pylez';
 
 export function main() {
     run(
-        (conn) => new LibroAnalyzer(conn),
+        (conn) => new Pylez(conn, /** maxWorkers */ 1),
         () => {
             const runner = new BackgroundAnalysisRunner(new ServiceProvider());
             runner.start();

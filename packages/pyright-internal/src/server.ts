@@ -69,7 +69,7 @@ export class PyrightServer extends LanguageServerBase {
 
         super(
             {
-                productName: 'Pyright',
+                productName: 'Pylez',
                 rootDirectory: realPathRoot,
                 version,
                 serviceProvider,

@@ -93,6 +93,55 @@
             ]
         },
         {
+            "name": "Pylez extension",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${workspaceRoot}/packages/vscode-pylez/dist/extension.js",
+            "preLaunchTask": "npm: build:extension:dev",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-pylez",
+                // The published extension is named "ms-pyright.pyright", but in debug mode it's "ms-pyright.vscode-pyright"
+                // to allow the extension code to participate in the lerna monorepo. Make sure that the published extension
+                // isn't enabled, otherwise both are loaded and conflict.
+                "--disable-extension=ms-pyright.pylez"
+            ],
+            "smartStep": true,
+            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceRoot}/packages/vscode-pylez/dist/**/*.js"
+            ]
+        },
+        {
+            "name": "Pylez extension (watch)",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${workspaceRoot}/packages/vscode-pylez/dist/extension.js",
+            "preLaunchTask": "Watch extension",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-pylez",
+                // The published extension is named "ms-pyright.pyright", but in debug mode it's "ms-pyright.vscode-pyright"
+                // to allow the extension code to participate in the lerna monorepo. Make sure that the published extension
+                // isn't enabled, otherwise both are loaded and conflict.
+                "--disable-extension=ms-pyright.pylez"
+            ],
+            "smartStep": true,
+            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceRoot}/packages/vscode-pylez/dist/**/*.js"
+            ]
+        },
+        {
+            "name": "Pylez attach server",
+            "type": "node",
+            "request": "attach",
+            "port": 6600,
+            "smartStep": true,
+            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceRoot}/packages/vscode-pylez/dist/**/*.js"
+            ]
+        },
+        {
             "name": "Pyright jest current file",
             "type": "node",
             "request": "launch",

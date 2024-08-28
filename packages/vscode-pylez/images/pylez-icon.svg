@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+    <g fill="#b0b0b0" stroke="#696969" stroke-width="2">
+        <polygon points="40,30 20,20 20,60 40,50" /> 
+        <polygon points="80,30 60,20 60,60 80,50" /> 
+        <polygon points="40,50 60,60 80,50 60,40" /> 
+    </g>
+    <g fill="#e0e0e0" stroke="none">
+        <polygon points="20,20 40,30 60,20 60,40" />
+        <polygon points="40,50 20,60 20,70 40,60" />
+        <polygon points="60,60 80,50 80,70 60,80" />
+    </g>
+</svg>

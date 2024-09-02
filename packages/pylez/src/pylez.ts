@@ -360,6 +360,7 @@ export class Pylez extends LanguageServerBase {
         supportedCommands: string[],
         supportedCodeActions: string[]
     ): Promise<InitializeResult> {
+        this.console.log('[pylez] initialize');
         const result = await super.initialize(params, supportedCommands, supportedCodeActions);
         result.capabilities.notebookDocumentSync = {
             notebookSelector: [
@@ -374,6 +375,7 @@ export class Pylez extends LanguageServerBase {
 
     protected async onDidOpenNotebookDocument(params: DidOpenNotebookDocumentParams) {
         const uri = this.convertLspUriStringToUri(params.notebookDocument.uri);
+        this.console.log(`[pylez] onDidOpenNotebookDocument: ${uri.toString()}`);
         let doc = this.notebookDocuments.get(uri.key);
         if (doc) {
             // We shouldn't get an open notebook document request for an already-opened doc.
@@ -397,6 +399,7 @@ export class Pylez extends LanguageServerBase {
     protected async onDidChangeNotebookDocument(params: DidChangeNotebookDocumentParams) {
         this.recordUserInteractionTime();
         const uri = this.convertLspUriStringToUri(params.notebookDocument.uri);
+        this.console.log(`[pylez] onDidChangeNotebookDocument: ${uri.toString()}`);
         const notebookDocument = this.notebookDocuments.get(uri.key);
         if (notebookDocument === undefined) {
             // We shouldn't get a change notebook request for a closed doc.
@@ -464,9 +467,12 @@ export class Pylez extends LanguageServerBase {
             }
         }
     }
+
     protected onDidSaveNotebookDocument(params: DidSaveNotebookDocumentParams) {}
+
     protected onDidCloseNotebookDocument(params: DidCloseNotebookDocumentParams) {
         const uri = this.convertLspUriStringToUri(params.notebookDocument.uri);
+        this.console.log(`[pylez] onDidCloseNotebookDocument: ${uri.toString()}`);
         const notebookDocument = this.notebookDocuments.get(uri.key);
         if (notebookDocument === undefined) {
             return;
@@ -483,7 +489,7 @@ export class Pylez extends LanguageServerBase {
         chainedFileUri?: Uri
     ): Promise<void> {
         const uri = this.convertLspUriStringToUri(params.textDocument.uri);
-
+        this.console.log(`[pylez] onDidOpenTextDocument: ${uri.toString()}`);
         let doc = this.openFileMap.get(uri.key);
         if (doc) {
             // We shouldn't get an open text document request for an already-opened doc.

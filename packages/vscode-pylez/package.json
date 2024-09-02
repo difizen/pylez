@@ -2,7 +2,7 @@
     "name": "vscode-pylez",
     "displayName": "Pylez",
     "description": "VS Code static type checking for Python",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "private": true,
     "license": "MIT",
     "author": {
@@ -1569,7 +1569,7 @@
     },
     "scripts": {
         "clean": "shx rm -rf ./dist ./out",
-        "prepackage": "node ./build/renamePackage.js pylez",
+        "prepackage": "node ./build/renamePackage.js pylez && shx cp ../../README.md . && shx cp ../../LICENSE.txt .",
         "package": "vsce package",
         "postpackage": "node ./build/renamePackage.js vscode-pylez",
         "vscode:prepublish": "node ./build/checkPackage.js && npm run clean && webpack --mode production --progress",

@@ -39,6 +39,8 @@ import {
     Command,
     Connection,
     ExecuteCommandParams,
+    SemanticTokens,
+    SemanticTokensParams,
     WorkDoneProgressServerReporter,
 } from 'vscode-languageserver';
 import {
@@ -54,6 +56,7 @@ import {
     NotebookDocument,
 } from 'vscode-languageserver-protocol';
 import { NotebookCellScheme } from './constant';
+import { SemanticTokensProvider, SemanticTokensProviderLegend } from './langaugeService/semanticTokensProvider';
 
 const maxAnalysisTimeInForeground = { openFilesTimeInMs: 50, noOpenFilesTimeInMs: 200 };
 
@@ -353,6 +356,7 @@ export class Pylez extends LanguageServerBase {
         this.connection.notebooks.synchronization.onDidCloseNotebookDocument(async (params) =>
             this.onDidCloseNotebookDocument(params)
         );
+        this.connection.languages.semanticTokens.on(async (params, token) => this.onSemanticTokens(params, token));
     }
 
     protected override async initialize(
@@ -369,6 +373,10 @@ export class Pylez extends LanguageServerBase {
                     cells: [{ language: 'python' }],
                 },
             ],
+        };
+        result.capabilities.semanticTokensProvider = {
+            legend: SemanticTokensProviderLegend,
+            full: true,
         };
         return result;
     }
@@ -545,6 +553,20 @@ export class Pylez extends LanguageServerBase {
     protected override onShutdown(token: CancellationToken): Promise<void> {
         this.notebookDocuments.clear();
         return super.onShutdown(token);
+    }
+
+    protected async onSemanticTokens(params: SemanticTokensParams, token: CancellationToken): Promise<SemanticTokens> {
+        const uri = Uri.parse(params.textDocument.uri, this.serviceProvider);
+        const workspace = await this.getWorkspaceForFile(uri);
+        if (workspace.disableLanguageServices) {
+            return {
+                resultId: undefined,
+                data: [],
+            };
+        }
+        return workspace.service.run((program) => {
+            return new SemanticTokensProvider(program, uri, token).onSemanticTokens();
+        }, token);
     }
 
     private _getStringValues(values: any) {

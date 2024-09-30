@@ -42,5 +42,8 @@
     "word-wrap": "1.2.5",
     "yargs": "^16.2.0"
   },
-  "repository": "git@github.com:difizen/pylez.git"
+  "repository": "git@github.com:difizen/pylez.git",
+  "volta": {
+    "node": "20.17.0"
+  }
 }

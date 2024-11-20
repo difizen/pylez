@@ -1528,6 +1528,12 @@
                     "description": "Use library implementations to extract type information when type stub is not present.",
                     "scope": "resource"
                 },
+                "python.analysis.indexing": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "",
+                    "scope": "resource"
+                },
                 "pylez.disableLanguageServices": {
                     "type": "boolean",
                     "default": false,
@@ -1562,8 +1568,8 @@
         },
         "jsonValidation": [
             {
-                "fileMatch": "pyrightconfig.json",
-                "url": "./schemas/pyrightconfig.schema.json"
+                "fileMatch": "pylezconfig.json",
+                "url": "./schemas/pylezconfig.schema.json"
             }
         ]
     },

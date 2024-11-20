@@ -566,7 +566,7 @@
         "strict"
       ],
       "title": "Specifies the default rule set to use for type checking",
-      "default": "standard"
+      "default": "off"
     },
     "useLibraryCodeForTypes": {
       "type": "boolean",

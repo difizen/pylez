@@ -15,7 +15,7 @@ import { FileBasedCancellationProvider } from 'pyright-internal/common/fileBased
 import { FileSystem } from 'pyright-internal/common/fileSystem';
 import { FullAccessHost } from 'pyright-internal/common/fullAccessHost';
 import { Host } from 'pyright-internal/common/host';
-import { ServerSettings } from 'pyright-internal/common/languageServerInterface';
+import { ServerSettings, WorkspaceServices } from 'pyright-internal/common/languageServerInterface';
 import { ProgressReporter } from 'pyright-internal/common/progressReporter';
 import {
     createFromRealFileSystem,
@@ -32,6 +32,7 @@ import { CodeActionProvider } from 'pyright-internal/languageService/codeActionP
 import { PyrightFileSystem } from 'pyright-internal/pyrightFileSystem';
 import { WellKnownWorkspaceKinds, Workspace } from 'pyright-internal/workspaceFactory';
 
+import { AnalyzerService, getNextServiceId, LibraryReanalysisTimeProvider } from 'pyright-internal/analyzer/service';
 import {
     CodeAction,
     CodeActionKind,
@@ -170,6 +171,10 @@ export class Pylez extends LanguageServerBase {
                     serverSettings.useLibraryCodeForTypes = !!pythonAnalysisSection.useLibraryCodeForTypes;
                 }
 
+                if (pythonAnalysisSection.indexing !== undefined) {
+                    serverSettings.indexing = !!pythonAnalysisSection.indexing;
+                }
+
                 serverSettings.logLevel = convertLogLevel(pythonAnalysisSection.logLevel);
                 serverSettings.autoSearchPaths = !!pythonAnalysisSection.autoSearchPaths;
 
@@ -240,6 +245,34 @@ export class Pylez extends LanguageServerBase {
         }
 
         return new BackgroundAnalysis(this.serverOptions.serviceProvider);
+    }
+
+    override createAnalyzerService(
+        name: string,
+        services?: WorkspaceServices,
+        libraryReanalysisTimeProvider?: LibraryReanalysisTimeProvider
+    ): AnalyzerService {
+        this.console.info(`Starting service instance "${name}"`);
+
+        const serviceId = getNextServiceId(name);
+
+        const service = new AnalyzerService(name, this.serverOptions.serviceProvider, {
+            console: this.console,
+            hostFactory: this.createHost.bind(this),
+            importResolverFactory: this.createImportResolver.bind(this),
+            backgroundAnalysis: services ? services.backgroundAnalysis : this.createBackgroundAnalysis(serviceId),
+            maxAnalysisTime: this.serverOptions.maxAnalysisTimeInForeground,
+            backgroundAnalysisProgramFactory: this.createBackgroundAnalysisProgram.bind(this),
+            cancellationProvider: this.serverOptions.cancellationProvider,
+            libraryReanalysisTimeProvider,
+            serviceId,
+            fileSystem: services?.fs ?? this.serverOptions.serviceProvider.fs(),
+            // skip indexing file by default
+            skipScanningUserFiles: true,
+        });
+
+        service.setCompletionCallback((results) => this.onAnalysisCompletedHandler(service.fs, results));
+        return service;
     }
 
     override getContainingWorkspacesForFile(fileUri: Uri): Promise<Workspace[]> {
